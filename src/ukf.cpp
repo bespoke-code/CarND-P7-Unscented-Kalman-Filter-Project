@@ -91,6 +91,19 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
     if (meas_package.sensor_type_ == MeasurementPackage::RADAR) {
         // RADAR
     }
+
+    this->Prediction(meas_package.timestamp_ - time_us_);
+    // update last timestamp for step k+1
+    time_us_ = meas_package.timestamp_;
+
+    if (meas_package.sensor_type_ == MeasurementPackage::LASER) {
+        // LASER
+        this->UpdateLidar(meas_package);
+    }
+    if (meas_package.sensor_type_ == MeasurementPackage::RADAR) {
+        // RADAR
+        this->UpdateRadar(meas_package);
+    }
 }
 
 /**
@@ -229,7 +242,7 @@ void UKF::UpdateRadar(MeasurementPackage meas_package) {
     double px, py, v, yaw_rate, vx, vy;
 
     //create matrix for sigma points in measurement space
-    MatrixXd Zsig = MatrixXd(n_z, 2 * n_aug_ + 1);
+    MatrixXd Zsig = MatrixXd(n_z, 2*n_aug_+1);
 
     //transform sigma points into measurement space
     for (int i=0; i < 2*n_aug_+1; ++i) {  //2n+1 sigma points
@@ -306,10 +319,13 @@ void UKF::UpdateRadar(MeasurementPackage meas_package) {
     //update state mean and covariance matrix
     x_ = x_ + K * z_diff;
     P_ = P_ - K*S*K.transpose();
+
+    // calculate NIS
+    double nis_r = z_diff.transpose() * S.inverse() * z_diff;
 }
 
 void UKF::normalizeAngle(VectorXd &z_diff) {
     //angle normalization check
     if (z_diff(3) > M_PI || z_diff(3) < -M_PI)
-        z_diff(3) = fmod(z_diff(3), M_PI);
+        z_diff(3) = std::fmod(z_diff(3), M_PI);
 }
