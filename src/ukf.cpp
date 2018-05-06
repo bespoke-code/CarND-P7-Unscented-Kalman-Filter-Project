@@ -18,11 +18,15 @@ UKF::UKF() {
     // if this is false, radar measurements will be ignored (except during init)
     use_radar_ = true;
 
+    n_x_ = 5;
+    n_aug_ = 7;
+    lambda_ = 3 - n_x_;
+
     // initial state vector
-    x_ = VectorXd(5);
+    x_ = VectorXd(n_x_);
 
     // initial covariance matrix
-    P_ = MatrixXd(5, 5);
+    P_ = MatrixXd(n_x_, n_x_);
 
     // Process noise standard deviation longitudinal acceleration in m/s^2
     std_a_ = 0.3; // 30? Really?
@@ -55,9 +59,17 @@ UKF::UKF() {
     Hint: one or more values initialized above might be wildly off...
     */
 
-    n_x_ = 5;
-    n_aug_ = 7;
-    lambda_ = 3 - n_x_;
+    weights_ = VectorXd(2*n_aug_+1);
+    weights_.fill(0.0);
+
+    weights_(0) = lambda_ / (lambda_ + n_aug_);
+    for (int i = 1; i < 2*n_aug_+1; ++i) {
+        weights_(i) = lambda_ / (2 * (lambda_ + n_aug_));
+    }
+
+    Xsig_pred_ = MatrixXd(n_x_, 2 * n_aug_ + 1);
+    Xsig_pred_.fill(0.0);
+
 }
 
 UKF::~UKF() {}
@@ -97,9 +109,9 @@ void UKF::Prediction(double delta_t) {
 
     // augment X
     VectorXd x_aug = VectorXd(n_aug_);
-    x_aug.head(5) = x_;
-    x_aug(5) = 0;
-    x_aug(6) = 0;
+    x_aug.head(n_x_) = x_;
+    x_aug(n_x_) = 0;
+    x_aug(n_x_+1) = 0;
 
     MatrixXd P_aug = MatrixXd(n_aug_, n_aug_);
     P_aug.fill(0.0);
@@ -108,19 +120,80 @@ void UKF::Prediction(double delta_t) {
     P_aug(5,5) = std_a_*std_a_;
     P_aug(6,6) = std_yawdd_*std_yawdd_;
 
-
+    // Augmented sigma points matrix
     MatrixXd Xsig_aug = MatrixXd(n_aug_, 2 * n_aug_ + 1);
+
+    // Predicted sigma points according to the model
 
     MatrixXd A = P_aug.llt().matrixL();
 
     // Calculating sigma points
     Xsig_aug.col(0) = x_;
 
-    for(int i=0; i<n_x_; i++) {
+    for(int i=0; i < n_x_; i++) {
         Xsig_aug.col(i+1) = x_ + std::sqrt(lambda_ + n_aug_) * A.col(i);
         Xsig_aug.col(i+1+n_aug_) = x_ - std::sqrt(lambda_ + n_aug_) * A.col(i);
     }
 
+    // Predict the sigma points after the process model
+    double px, py, v, psi, yaw_rate, ni_acc, ni_yaw;
+    for(int i=0; i < 2*n_aug_+1; ++i) {
+        px = Xsig_aug.col(i)[0];
+        py = Xsig_aug.col(i)[1];
+        v = Xsig_aug.col(i)[2];
+        psi = Xsig_aug.col(i)[3];
+        yaw_rate = Xsig_aug.col(i)[4];
+        ni_acc = Xsig_aug.col(i)[5];
+        ni_yaw = Xsig_aug.col(i)[6];
+
+        VectorXd sigma_pt = VectorXd(n_x_);
+
+        //avoid division by zero
+        // if yaw rate is zero
+        if(Xsig_aug.col(i)(4) == 0) {
+            // calculate px, py when yaw rate is zero
+            sigma_pt(0) = px + v * cos(psi)*delta_t + pow(delta_t, 2)/2 * cos(psi)* ni_acc;
+            sigma_pt(1) = py + v * sin(psi)*delta_t + pow(delta_t, 2)/2 * sin(psi)* ni_acc;
+        }
+        else {
+            // calculate px, py otherwise
+            sigma_pt(0) = px + v/yaw_rate * (sin(psi + yaw_rate*delta_t) - sin(psi)) + pow(delta_t, 2)/2 * cos(psi)* ni_acc;
+            sigma_pt(1) = py + v/yaw_rate * (-cos(psi + yaw_rate*delta_t) + cos(psi)) + pow(delta_t, 2)/2 * sin(psi)* ni_acc;
+        }
+
+        // calculate v, psi, yaw_rate
+        sigma_pt(2) = v + delta_t * ni_acc;
+        sigma_pt(3) = psi + yaw_rate * delta_t + pow(delta_t, 2)/2 * ni_yaw;
+        sigma_pt(4) = yaw_rate + delta_t * ni_yaw;
+
+        //write predicted sigma points into the corresponding column
+        Xsig_pred_.col(i) = sigma_pt;
+    }
+
+    // Use the predicted sigma points to calculate the predicted state's mean and covariance
+    //create vector for predicted state
+    VectorXd x = VectorXd(n_x_);
+    x.fill(0.0);
+
+    //create covariance matrix for prediction
+    MatrixXd P = MatrixXd(n_x_, n_x_);
+    P.fill(0.0);
+
+    //predict the state mean
+    for(int i=0; i < 2*n_aug_+1; ++i) {
+        x += weights_(i) * Xsig_pred_.col(i);
+    }
+
+    // predict state covariance matrix
+    for (int i = 0; i < 2*n_aug_+1; ++i) {
+
+        // state difference
+        VectorXd x_diff = Xsig_pred_.col(i) - x;
+        //angle normalization check
+        if (x_diff(3) > M_PI || x_diff(3) < -M_PI)
+            x_diff(3) = std::fmod(x_diff(3), M_PI);
+        P += weights_(i) * x_diff * x_diff.transpose();
+    }
 }
 
 /**
