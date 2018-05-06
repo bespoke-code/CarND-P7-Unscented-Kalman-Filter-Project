@@ -308,7 +308,7 @@ void UKF::UpdateRadar(MeasurementPackage meas_package) {
     P_ = P_ - K*S*K.transpose();
 }
 
-void UKF::normalizeAngle(const VectorXd &z_diff) const {
+void UKF::normalizeAngle(VectorXd &z_diff) {
     //angle normalization check
     if (z_diff(3) > M_PI || z_diff(3) < -M_PI)
         z_diff(3) = fmod(z_diff(3), M_PI);

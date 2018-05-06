@@ -103,7 +103,7 @@ public:
      */
     void UpdateRadar(MeasurementPackage meas_package);
 
-    void normalizeAngle(const VectorXd &z_diff) const;
+    void normalizeAngle(VectorXd &z_diff);
 };
 
 #endif /* UKF_H */
