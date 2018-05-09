@@ -89,9 +89,15 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
     // TODO: Initialization!
     if (meas_package.sensor_type_ == MeasurementPackage::LASER) {
         // LASER
+        double px = meas_package.raw_measurements_(0);
+        double py = meas_package.raw_measurements_(1);
+        x_ << px, py, 0, 0, 0;
     }
     if (meas_package.sensor_type_ == MeasurementPackage::RADAR) {
         // RADAR
+        double px = meas_package.raw_measurements_(0) * std::cos(meas_package.raw_measurements_(2));
+        double py = meas_package.raw_measurements_(0) * std::sin(meas_package.raw_measurements_(2));
+        this->x_ << px, py, 0, 0, 0;
     }
 
     this->Prediction(meas_package.timestamp_ - time_us_);
