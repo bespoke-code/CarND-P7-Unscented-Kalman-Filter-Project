@@ -55,9 +55,7 @@ UKF::UKF() {
     //DO NOT MODIFY measurement noise values above these are provided by the sensor manufacturer.
 
     /**
-    TODO:
-
-    Complete the initialization. See ukf.h for other member properties.
+    TODO: Complete the initialization. See ukf.h for other member properties.
 
     Hint: one or more values initialized above might be wildly off...
     */
@@ -70,7 +68,7 @@ UKF::UKF() {
 
     weights_(0) = lambda_ / (lambda_ + n_aug_);
     for (int i = 1; i < 2*n_aug_+1; ++i) {
-        weights_(i) = lambda_ / (2 * (lambda_ + n_aug_));
+        weights_(i) = 1.0 / (2.0 * (lambda_ + n_aug_)); // was lambda_ / (2 * (lambda_ + n_aug_))
     }
 
     Xsig_pred_ = MatrixXd(n_x_, 2 * n_aug_ + 1);
@@ -96,9 +94,7 @@ UKF::~UKF() {}
  */
 void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
     /**
-    TODO:
-
-    Complete this function! Make sure you switch between lidar and radar
+    TODO: Complete this function! Make sure you switch between lidar and radar
     measurements.
     */
     if(!is_initialized_) {
@@ -159,9 +155,7 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
  */
 void UKF::Prediction(double delta_t) {
     /**
-    TODO:
-
-    Complete this function! Estimate the object's location. Modify the state
+    TODO: Complete this function! Estimate the object's location. Modify the state
     vector, x_. Predict sigma points, the state, and the state covariance matrix.
     */
 
@@ -267,9 +261,7 @@ void UKF::Prediction(double delta_t) {
  */
 void UKF::UpdateLidar(MeasurementPackage meas_package) {
     /**
-    TODO:
-
-    Complete this function! Use lidar data to update the belief about the object's
+    TODO: Complete this function! Use lidar data to update the belief about the object's
     position. Modify the state vector, x_, and covariance, P_.
 
     You'll also need to calculate the lidar NIS.
@@ -347,9 +339,7 @@ void UKF::UpdateLidar(MeasurementPackage meas_package) {
  */
 void UKF::UpdateRadar(MeasurementPackage meas_package) {
     /**
-    TODO:
-
-    Complete this function! Use radar data to update the belief about the object's
+    TODO: Complete this function! Use radar data to update the belief about the object's
     position. Modify the state vector, x_, and covariance, P_.
 
     You'll also need to calculate the radar NIS.
