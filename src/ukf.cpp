@@ -126,7 +126,7 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
             rho_dot = meas_package.raw_measurements_(2);
             double v = std::sqrt(std::pow(rho_dot*std::cos(phi), 2) +
                                  std::pow(rho_dot*std::sin(phi), 2));
-            x_ << px, py, v, 0, 0; // 4.16m/s = 15km/h predicted speed
+            x_ << px, py, v, 0, 0;
             P_ << std_radr_*std_radr_, 0, 0, 0, 0,
                     0, std_radr_*std_radr_, 0, 0, 0,
                     0, 0, 1, 0, 0,
