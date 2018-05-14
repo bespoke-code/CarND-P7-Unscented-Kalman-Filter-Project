@@ -67,7 +67,8 @@ public:
     ///* Sigma point spreading parameter
     double lambda_;
 
-
+    MatrixXd R_laser_;
+    MatrixXd R_radar_;
     /**
      * Constructor
      */
@@ -103,7 +104,7 @@ public:
      */
     void UpdateRadar(MeasurementPackage meas_package);
 
-    void normalizeAngle(VectorXd &z_diff);
+    void normalizeAngle(VectorXd &z_diff, int index);
 };
 
 #endif /* UKF_H */
