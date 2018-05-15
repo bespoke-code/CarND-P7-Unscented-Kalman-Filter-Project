@@ -2,7 +2,6 @@
 #define UKF_H
 
 #include "measurement_package.h"
-#include "Eigen/Dense"
 #include <vector>
 #include <string>
 #include <fstream>
@@ -69,6 +68,9 @@ public:
 
     MatrixXd R_laser_;
     MatrixXd R_radar_;
+
+    double NIS_radar_;
+    double NIS_lidar_;
     /**
      * Constructor
      */
