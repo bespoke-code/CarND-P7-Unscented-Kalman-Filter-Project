@@ -77,11 +77,11 @@ UKF::UKF() {
     R_radar_ = MatrixXd(3,3);
 
     R_laser_ << std_laspx_*std_laspx_, 0,
-                0, std_laspy_*std_laspy_;
+            0, std_laspy_*std_laspy_;
 
     R_radar_ << std_radr_*std_radr_, 0, 0,
-                0, std_radphi_*std_radphi_, 0,
-                0, 0, std_radrd_*std_radrd_;
+            0, std_radphi_*std_radphi_, 0,
+            0, 0, std_radrd_*std_radrd_;
 
 }
 
@@ -98,17 +98,12 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
             // LASER
             double px = meas_package.raw_measurements_(0);
             double py = meas_package.raw_measurements_(1);
-            x_ << px, py, 4.16, 0, 0; // 4.16m/s = 15km/h predicted speed
-            P_ << std_laspx_*std_laspx_, 0, 0, 0, 0,
-                    0, std_laspy_*std_laspy_, 0, 0, 0,
-                    0, 0, 1, 0, 0,
-                    0, 0, 0, 1, 0,
-                    0, 0, 0, 0, 1;
 
+            x_ << px, py, 4.16, 0, 0; // 4.16m/s = 15km/h predicted speed
         }
+
         if (meas_package.sensor_type_ == MeasurementPackage::RADAR) {
             // RADAR
-
             double rho, phi, rho_dot;
             rho = meas_package.raw_measurements_(0);
             phi = meas_package.raw_measurements_(1);
@@ -121,31 +116,28 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
                                  std::pow(rho_dot*std::sin(phi), 2));
 
             x_ << px, py, v, 0, 0;
-            P_ << std_radr_*std_radr_, 0, 0, 0, 0,
-                    0, std_radr_*std_radr_, 0, 0, 0,
-                    0, 0, 1, 0, 0,
-                    0, 0, 0, std_radphi_*std_radphi_, 0,
-                    0, 0, 0, 0, 1;
         }
         // Initialization is done only once
         is_initialized_ = true;
         // set time of last measurement
         time_us_ = meas_package.timestamp_;
+        return;
     }
-    else {
-        double delta_t = (double)(meas_package.timestamp_ - time_us_) / 1000000.0; // time in seconds
-        // set time of last measurement
-        time_us_ = meas_package.timestamp_;
-        // std::cout << delta_t << std::endl; // check frequency of sensor measurements out of pure curiosity
-        this->Prediction(delta_t);
-        // update last timestamp for step k+1
-        if (meas_package.sensor_type_ == MeasurementPackage::LASER) {
-            this->UpdateLidar(meas_package);
-        }
-        if (meas_package.sensor_type_ == MeasurementPackage::RADAR) {
-            this->UpdateRadar(meas_package);
-        }
+
+    double delta_t = (double)(meas_package.timestamp_ - time_us_) / 1000000.0; // time in seconds
+    // set time of last measurement
+    time_us_ = meas_package.timestamp_;
+
+    Prediction(delta_t);
+
+    // update last timestamp for step k+1
+    if (meas_package.sensor_type_ == MeasurementPackage::LASER) {
+        UpdateLidar(meas_package);
     }
+    if (meas_package.sensor_type_ == MeasurementPackage::RADAR) {
+        UpdateRadar(meas_package);
+    }
+
 }
 
 /**
@@ -158,6 +150,11 @@ void UKF::Prediction(double delta_t) {
     Estimating the object's location. In the process, we modify the state
     vector, x_, and then predict sigma points, the state, and the state covariance matrix.
     */
+
+    // TODO: Rewrite function, as suggested by the reviewer! See notes below:
+    // Your Prediction function needs work! As due to this function you are facing the issue
+    // of not reaching the required RMSE values. I suggest you can write this function from scratch
+    // and it's easy because you can find this function in the lessons.
 
     // augment X
     VectorXd x_aug = VectorXd(n_aug_);
@@ -266,6 +263,8 @@ void UKF::UpdateLidar(MeasurementPackage meas_package) {
 
     The lidar NIS is also calculated in the end.
     */
+
+    // TODO: Rewrite using standard KF equation (this is a linear model!)
 
     VectorXd z = meas_package.raw_measurements_;
     int n_z = 2;
