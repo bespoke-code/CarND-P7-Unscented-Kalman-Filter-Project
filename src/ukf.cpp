@@ -35,12 +35,16 @@ UKF::UKF() {
             0, 0, 0, 1, 0,
             0, 0, 0, 0, 1;
 
+    H_ = MatrixXd(2, n_x_);
+    H_ <<   1, 0, 0, 0, 0,
+            0, 1, 0, 0, 0;
+
     // TODO: further tune the process noise parameters std_a_ and std_yawdd?
     // Process noise standard deviation longitudinal acceleration in m/s^2
     std_a_ = 1;
 
     // Process noise standard deviation yaw acceleration in rad/s^2
-    std_yawdd_ = 0.5;
+    std_yawdd_ = 0.3; // was 0.5
 
     //DO NOT MODIFY measurement noise values below these are provided by the sensor manufacturer.
     // Laser measurement noise standard deviation position1 in m
@@ -264,68 +268,28 @@ void UKF::UpdateLidar(MeasurementPackage meas_package) {
     The lidar NIS is also calculated in the end.
     */
 
-    // TODO: Rewrite using standard KF equation (this is a linear model!)
-
     VectorXd z = meas_package.raw_measurements_;
     int n_z = 2;
 
-    //create matrix for sigma points in measurement space
-    MatrixXd Zsig = MatrixXd(n_z, 2*n_aug_+1);
-    for (int i=0; i < 2*n_aug_+1; ++i) {  //2n+1 sigma points
-        Zsig(0,i) = Xsig_pred_(0,i);  // px
-        Zsig(1,i) = Xsig_pred_(1,i);  // py
-    }
-
     // mean predicted measurement
-    VectorXd z_pred = VectorXd(n_z);
-    z_pred.fill(0.0);
-    for (int i=0; i < 2*n_aug_+1; ++i) {
-        z_pred += weights_(i) * Zsig.col(i);
-    }
-
-    //innovation covariance matrix S
-    MatrixXd S = MatrixXd(n_z, n_z);
-    S.fill(0.0);
-
-    for (int i = 0; i < 2*n_aug_+1; ++i) {  //2n+1 sigma points
-        //residual
-        VectorXd z_diff = Zsig.col(i) - z_pred;
-
-        S += weights_(i) * z_diff * z_diff.transpose();
-    }
-    // add measurement noise covariance matrix
-    S += R_laser_;
-
-
-    // create matrix for cross correlation Tc
-    MatrixXd Tc = MatrixXd(n_x_, n_z);
-
-    //calculate cross correlation matrix
-    Tc.fill(0.0);
-    for (int i = 0; i < 2 * n_aug_ + 1; ++i) {  //2n+1 sigma points
-
-        //residual
-        VectorXd z_diff = Zsig.col(i) - z_pred;
-
-        // state difference
-        VectorXd x_diff = Xsig_pred_.col(i) - x_;
-        normalizeAngle(x_diff, 3);
-
-        Tc = Tc + weights_(i) * x_diff * z_diff.transpose();
-    }
+    VectorXd z_pred = H_ * x_;
+    //residual
+    VectorXd y = z - z_pred;
 
     //Kalman gain K;
-    MatrixXd K = Tc * S.inverse();
-
-    //residual
-    VectorXd z_diff = z - z_pred;
+    MatrixXd Ht = H_.transpose();
+    MatrixXd S = H_ * P_ * Ht + R_laser_;
+    MatrixXd S_inv = S.inverse();
+    MatrixXd K = P_ * Ht * S_inv;
 
     //update state mean and covariance matrix
-    x_ += K * z_diff;
-    P_ -= K * S * K.transpose();
+    x_ += K * y;
+    MatrixXd I = MatrixXd::Identity(n_x_, n_x_);
+    P_ = (I - K * H_) * P_;
 
     // calculate NIS
-    NIS_lidar_ = z_diff.transpose() * S.inverse() * z_diff;
+    // z_diff (residual) is the same as the error y
+    NIS_lidar_ = y.transpose() * S_inv * y;
 }
 
 /**
