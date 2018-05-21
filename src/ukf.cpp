@@ -190,13 +190,13 @@ void UKF::Prediction(double delta_t) {
     // Predict the sigma points after the process model
     double px, py, v, psi, yaw_rate, ni_acc, ni_yaw;
     for(int i=0; i < 2*n_aug_+1; ++i) {
-        px = Xsig_aug.col(i)(0);
-        py = Xsig_aug.col(i)(1);
-        v = Xsig_aug.col(i)(2);
-        psi = Xsig_aug.col(i)(3);
-        yaw_rate = Xsig_aug.col(i)(4);
-        ni_acc = Xsig_aug.col(i)(5);
-        ni_yaw = Xsig_aug.col(i)(6);
+        px = Xsig_aug(0,i);
+        py = Xsig_aug(1,i);
+        v = Xsig_aug(2,i);
+        psi = Xsig_aug(3,i);
+        yaw_rate = Xsig_aug(4,i);
+        ni_acc = Xsig_aug(5,i);
+        ni_yaw = Xsig_aug(6,i);
 
         VectorXd sigma_pt = VectorXd(n_x_);
 
@@ -236,7 +236,7 @@ void UKF::Prediction(double delta_t) {
     for(int i=0; i < 2*n_aug_+1; ++i) {
         x += weights_(i) * Xsig_pred_.col(i);
     }
-    normalizeAngle(x, 3);
+    //normalizeAngle(x, 3);
 
     // predict state covariance matrix
     for (int i = 0; i < 2*n_aug_+1; ++i) {
@@ -269,7 +269,6 @@ void UKF::UpdateLidar(MeasurementPackage meas_package) {
     */
 
     VectorXd z = meas_package.raw_measurements_;
-    int n_z = 2;
 
     // mean predicted measurement
     VectorXd z_pred = H_ * x_;
@@ -390,6 +389,12 @@ void UKF::UpdateRadar(MeasurementPackage meas_package) {
 
 void UKF::normalizeAngle(VectorXd &z_diff, int index) {
     //angle normalization check
-    if (z_diff(index) > M_PI || z_diff(index) < -M_PI)
-        z_diff(index) = std::fmod(z_diff(index), M_PI);
+    //if (z_diff(index) > M_PI || z_diff(index) < -M_PI)
+    //    z_diff(index) = std::fmod(z_diff(index), M_PI);
+    while(z_diff(index) > M_PI) {
+        z_diff(index) -= 2.0 * M_PI;
+    }
+    while(z_diff(index) < -M_PI) {
+        z_diff(index) += 2.0 * M_PI;
+    }
 }
