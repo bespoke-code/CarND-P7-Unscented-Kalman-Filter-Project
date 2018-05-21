@@ -20,7 +20,7 @@ UKF::UKF() {
 
     n_x_ = 5;
     n_aug_ = 7;
-    lambda_ = 3 - n_aug_;
+    lambda_ = 3 - n_x_; // was 3 - n_aug_
 
     // initial state vector
     x_ = VectorXd(n_x_);
@@ -41,10 +41,10 @@ UKF::UKF() {
 
     // TODO: further tune the process noise parameters std_a_ and std_yawdd?
     // Process noise standard deviation longitudinal acceleration in m/s^2
-    std_a_ = 1.3;
+    std_a_ = 1;
 
     // Process noise standard deviation yaw acceleration in rad/s^2
-    std_yawdd_ = 0.25; // was 0.5
+    std_yawdd_ = 0.5;
 
     //DO NOT MODIFY measurement noise values below these are provided by the sensor manufacturer.
     // Laser measurement noise standard deviation position1 in m
@@ -220,7 +220,13 @@ void UKF::Prediction(double delta_t) {
         sigma_pt(4) = yaw_rate + delta_t * ni_yaw;
 
         //write predicted sigma points into the corresponding column
-        Xsig_pred_.col(i) = sigma_pt;
+        //Xsig_pred_.col(i) = sigma_pt;
+
+        Xsig_pred_(0,i) = sigma_pt(0); // px
+        Xsig_pred_(1,i) = sigma_pt(1); // py
+        Xsig_pred_(2,i) = sigma_pt(2); // v
+        Xsig_pred_(3,i) = sigma_pt(3); // psi
+        Xsig_pred_(4,i) = sigma_pt(4); // yaw_rate
     }
 
     // Use the predicted sigma points to calculate the predicted state's mean and covariance
@@ -234,7 +240,7 @@ void UKF::Prediction(double delta_t) {
 
     //predict the state mean
     for(int i=0; i < 2*n_aug_+1; ++i) {
-        x += weights_(i) * Xsig_pred_.col(i);
+        x = x + weights_(i) * Xsig_pred_.col(i);
     }
     //normalizeAngle(x, 3);
 
@@ -245,11 +251,13 @@ void UKF::Prediction(double delta_t) {
         VectorXd x_diff = Xsig_pred_.col(i) - x;
         normalizeAngle(x_diff, 3);
 
-        P += weights_(i) * x_diff * x_diff.transpose();
+        P = P + weights_(i) * x_diff * x_diff.transpose();
     }
 
     // Just a possibility for the future: save x, P in other variables to use in a more complex scenario
     // where the predicted position should be accessible anytime from the main program (for example, in SLAM scenarios)
+    x_.fill(0.0);
+    P_.fill(0.0);
     x_ = x;
     P_ = P;
 }
@@ -280,7 +288,7 @@ void UKF::UpdateLidar(MeasurementPackage meas_package) {
     MatrixXd K = P_ * Ht * S_inv;
 
     //update state mean and covariance matrix
-    x_ += K * y;
+    x_ = x_ + K * y;
     MatrixXd I = MatrixXd::Identity(n_x_, n_x_);
     P_ = (I - K * H_) * P_;
 
@@ -332,7 +340,7 @@ void UKF::UpdateRadar(MeasurementPackage meas_package) {
     VectorXd z_pred = VectorXd(n_z);
     z_pred.fill(0.0);
     for (int i=0; i < 2*n_aug_+1; ++i) {
-        z_pred += weights_(i) * Zsig.col(i);
+        z_pred = z_pred + weights_(i) * Zsig.col(i);
     }
 
     // innovation covariance matrix S
@@ -345,11 +353,11 @@ void UKF::UpdateRadar(MeasurementPackage meas_package) {
 
         normalizeAngle(z_diff, 1);
 
-        S += weights_(i) * z_diff * z_diff.transpose();
+        S = S + weights_(i) * z_diff * z_diff.transpose();
     }
 
     // add measurement noise covariance matrix
-    S += R_radar_;
+    S = S + R_radar_;
 
     // create cross correlation matrix Tc
     MatrixXd Tc = MatrixXd(n_x_, n_z);
@@ -365,7 +373,7 @@ void UKF::UpdateRadar(MeasurementPackage meas_package) {
         // state difference
         VectorXd x_diff = Xsig_pred_.col(i) - x_;
         normalizeAngle(x_diff, 3);
-        Tc += weights_(i) * x_diff * z_diff.transpose();
+        Tc  = Tc + weights_(i) * x_diff * z_diff.transpose();
 
     }
 
@@ -378,8 +386,8 @@ void UKF::UpdateRadar(MeasurementPackage meas_package) {
     normalizeAngle(z_diff, 1);
 
     //update state mean and covariance matrix
-    x_ += K * z_diff;
-    P_ -= K * S * K.transpose();
+    x_ = x_ + K * z_diff;
+    P_ = P_ + K * S * K.transpose();
 
     // calculate NIS
     NIS_radar_ = z_diff.transpose() * S.inverse() * z_diff;
