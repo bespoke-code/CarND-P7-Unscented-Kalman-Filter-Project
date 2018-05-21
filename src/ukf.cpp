@@ -41,10 +41,10 @@ UKF::UKF() {
 
     // TODO: further tune the process noise parameters std_a_ and std_yawdd?
     // Process noise standard deviation longitudinal acceleration in m/s^2
-    std_a_ = 1;
+    std_a_ = 1.3;
 
     // Process noise standard deviation yaw acceleration in rad/s^2
-    std_yawdd_ = 0.3; // was 0.5
+    std_yawdd_ = 0.25; // was 0.5
 
     //DO NOT MODIFY measurement noise values below these are provided by the sensor manufacturer.
     // Laser measurement noise standard deviation position1 in m
@@ -252,8 +252,6 @@ void UKF::Prediction(double delta_t) {
     // where the predicted position should be accessible anytime from the main program (for example, in SLAM scenarios)
     x_ = x;
     P_ = P;
-    std::cout << "v       = " << x_(2) << std::endl;
-    std::cout << "phi_dot = " << x_(4) << std::endl;
 }
 
 /**
