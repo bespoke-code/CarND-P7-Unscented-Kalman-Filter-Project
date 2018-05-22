@@ -188,59 +188,59 @@ void UKF::Prediction(double delta_t) {
     }
 
     // Predict the sigma points after the process model
-    double px, py, v, psi, yaw_rate, ni_acc, ni_yaw;
-    for(int i=0; i < 2*n_aug_+1; ++i) {
-        px = Xsig_aug(0,i);
-        py = Xsig_aug(1,i);
-        v = Xsig_aug(2,i);
-        psi = Xsig_aug(3,i);
-        yaw_rate = Xsig_aug(4,i);
-        ni_acc = Xsig_aug(5,i);
-        ni_yaw = Xsig_aug(6,i);
 
-        VectorXd sigma_pt = VectorXd(n_x_);
+    for(int i=0; i < 2*n_aug_+1; ++i) {
+        double px = Xsig_aug(0,i);
+        double py = Xsig_aug(1,i);
+        double v = Xsig_aug(2,i);
+        double psi = Xsig_aug(3,i);
+        double yaw_rate = Xsig_aug(4,i);
+        double ni_acc = Xsig_aug(5,i);
+        double ni_yaw = Xsig_aug(6,i);
+
+        double px_p;
+        double py_p;
+        double v_p = v;
+        double yaw_p = psi + yaw_rate*delta_t;
+        double yawd_p = yaw_rate;
 
         //avoid division by zero
         // if yaw rate is zero
-        if(std::fabs(yaw_rate) <= 0.001) {
+        if(std::fabs(yaw_rate) > 0.001) {
             // calculate px, py when yaw rate is zero
-            sigma_pt(0) = px + v * std::cos(psi)*delta_t + std::pow(delta_t, 2)/2 * std::cos(psi)* ni_acc;
-            sigma_pt(1) = py + v * std::sin(psi)*delta_t + std::pow(delta_t, 2)/2 * std::sin(psi)* ni_acc;
+            px_p = px + v/yaw_rate * (std::sin(psi + yaw_rate*delta_t) - std::sin(psi)) + std::pow(delta_t, 2)/2 * std::cos(psi)* ni_acc;
+            py_p = py + v/yaw_rate * (-std::cos(psi + yaw_rate*delta_t) + std::cos(psi)) + std::pow(delta_t, 2)/2 * std::sin(psi)* ni_acc;
         }
         else {
             // calculate px, py otherwise
-            sigma_pt(0) = px + v/yaw_rate * (std::sin(psi + yaw_rate*delta_t) - std::sin(psi)) + std::pow(delta_t, 2)/2 * std::cos(psi)* ni_acc;
-            sigma_pt(1) = py + v/yaw_rate * (-std::cos(psi + yaw_rate*delta_t) + std::cos(psi)) + std::pow(delta_t, 2)/2 * std::sin(psi)* ni_acc;
+            px_p = px + v * std::cos(psi)*delta_t;
+            py_p = py + v * std::sin(psi)*delta_t;
         }
 
-        // calculate v, psi, yaw_rate
-        sigma_pt(2) = v + delta_t * ni_acc;
-        sigma_pt(3) = psi + yaw_rate * delta_t + std::pow(delta_t, 2)/2 * ni_yaw;
-        normalizeAngle(sigma_pt, 3);
-        sigma_pt(4) = yaw_rate + delta_t * ni_yaw;
+        // predicted values
+        px_p = px_p + 0.5 * ni_acc * std::pow(delta_t, 2) * std::cos(psi);
+        py_p = py_p + 0.5 * ni_acc * std::pow(delta_t, 2) * std::sin(psi);
+        v_p = v_p + ni_acc * delta_t;
+        yaw_p = yaw_p + 0.5 * ni_yaw * delta_t*delta_t;
+        yawd_p = yawd_p + ni_yaw * delta_t;
 
         //write predicted sigma points into the corresponding column
-        //Xsig_pred_.col(i) = sigma_pt;
 
-        Xsig_pred_(0,i) = sigma_pt(0); // px
-        Xsig_pred_(1,i) = sigma_pt(1); // py
-        Xsig_pred_(2,i) = sigma_pt(2); // v
-        Xsig_pred_(3,i) = sigma_pt(3); // psi
-        Xsig_pred_(4,i) = sigma_pt(4); // yaw_rate
+        Xsig_pred_(0,i) = px_p;
+        Xsig_pred_(1,i) = py_p;
+        Xsig_pred_(2,i) = v_p;
+        Xsig_pred_(3,i) = yaw_p;
+        Xsig_pred_(4,i) = yawd_p;
     }
 
     // Use the predicted sigma points to calculate the predicted state's mean and covariance
-    //create vector for predicted state
-    VectorXd x = VectorXd(n_x_);
-    x.fill(0.0);
+    x_.fill(0.0);
 
-    //create covariance matrix for prediction
-    MatrixXd P = MatrixXd(n_x_, n_x_);
-    P.fill(0.0);
+    P_.fill(0.0);
 
     //predict the state mean
     for(int i=0; i < 2*n_aug_+1; ++i) {
-        x = x + weights_(i) * Xsig_pred_.col(i);
+        x_ = x_ + weights_(i) * Xsig_pred_.col(i);
     }
     //normalizeAngle(x, 3);
 
@@ -248,18 +248,14 @@ void UKF::Prediction(double delta_t) {
     for (int i = 0; i < 2*n_aug_+1; ++i) {
 
         // state difference
-        VectorXd x_diff = Xsig_pred_.col(i) - x;
+        VectorXd x_diff = Xsig_pred_.col(i) - x_;
         normalizeAngle(x_diff, 3);
 
-        P = P + weights_(i) * x_diff * x_diff.transpose();
+        P_ = P_ + weights_(i) * x_diff * x_diff.transpose();
     }
 
     // Just a possibility for the future: save x, P in other variables to use in a more complex scenario
     // where the predicted position should be accessible anytime from the main program (for example, in SLAM scenarios)
-    x_.fill(0.0);
-    P_.fill(0.0);
-    x_ = x;
-    P_ = P;
 }
 
 /**
